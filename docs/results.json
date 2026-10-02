@@ -1,0 +1,6 @@
+{"month":"2026-03","pages":176738,"train_clients":37,"test_clients":10,"test_pages":38428,"base_all":0.377,"base_test":0.403,
+"methods":[["Base rate (random order)",0.403,0.403,"w05"],["Baseline rule: age 365+ days and 500+ impressions",0.05,0.10,"w05"],["Logistic regression",0.45,0.44,"w05"],["Random forest",0.55,0.68,"w05 (w06 rerun: 0.55 / 0.66)"]],
+"split":[["Random row split",0.85,0.86,"w06"],["Grouped by client",0.55,0.66,"w06"]],
+"age":[["New (<180 days)",0.262,117016],["Aging (180-365 days)",0.156,181930],["Old (365+ days)",0.234,32491]],
+"importance":[["content_age_days",0.091],["avg_position",0.038],["impressions_month",0.025],["ctr",0.019],["word_count",0.009],["search_volume",0.008],["competition",0.0007]],
+"actions":{"fix_ctr_snippet":104091,"review_for_refresh":5448,"no_action":67199},"ga4_share":0.042}
