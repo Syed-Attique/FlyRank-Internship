@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Can a simple model rank pages that lose search impressions better than a rule?</title>
+<meta name="description" content="A client-held-out test of a ranking model for content review, built on the FlyRank ML Internship dataset. Observed and directional, not causal.">
+<style>
+:root{--bg:#fbfaf7;--tx:#1f2937;--mu:#4b5563;--ac:#2457a6;--bd:#e5e7eb;--bar:#9aa3b2}
+@media(prefers-color-scheme:dark){:root{--bg:#16181d;--tx:#e8eaed;--mu:#a6adb8;--ac:#7fb0ff;--bd:#2c303a;--bar:#6b7384}}
+body{margin:0;background:var(--bg);color:var(--tx);font:17px/1.6 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+main{max-width:44rem;margin:0 auto;padding:1.5rem 1.1rem 4rem}
+h1{font-size:1.7rem;line-height:1.25;margin:.4rem 0}h2{font-size:1.25rem;margin:2.2rem 0 .4rem;border-top:1px solid var(--bd);padding-top:1.2rem}
+p,li{margin:.5rem 0}.mu{color:var(--mu);font-size:.92rem}a{color:var(--ac)}
+.abs{border-left:4px solid var(--ac);padding:.2rem 1rem;background:rgba(36,87,166,.06)}
+table{border-collapse:collapse;width:100%;font-size:.93rem;display:block;overflow-x:auto}td,th{border-bottom:1px solid var(--bd);padding:.4rem .5rem;text-align:left}
+figure{margin:1.2rem 0}figcaption{font-size:.92rem;color:var(--mu)}.t{font-weight:600;margin-bottom:.4rem}
+.r{display:flex;align-items:center;gap:.5rem;margin:.3rem 0;font-size:.9rem}.l{flex:0 0 38%}.b{flex:1;background:var(--bd);height:14px;border-radius:3px}
+.b i{display:block;height:100%;background:var(--bar);border-radius:3px}.b i.hi{background:var(--ac)}.r b{flex:0 0 5.5rem;text-align:right}
+</style></head><body><main>
+<p class=mu>Research note · observed, measured, directional — decision-support, not causal</p>
+<h1>Can a simple model rank pages that lose search impressions better than a rule?</h1>
+<p class=mu>A client-held-out test on one month (March 2026) of FlyRank content data</p>
+
+<h2>Abstract</h2>
+<div class=abs>
+<p>Question: can a model rank web pages whose search impressions fell within March 2026 better than a hand-written "old but visible" rule? Data: @@PAGES@@ pseudonymized pages from the FlyRank ML Internship warehouse, labelled as declining when impressions on Mar 16–31 were below Mar 1–15 (37.7% of pages). Method: logistic regression and a random forest on seven page-level features, scored on 10 clients held out entirely from training, using precision among the top 50 pages. Result: the random forest reached 0.66–0.68 precision@50 against a 0.40 base rate and 0.10 for the rule, while a random row split inflated it to 0.86. Use: a shortlist for human review, not a forecast, because the features and label cover the same month and the test is one split of 10 clients.</p></div>
+
+<h2>1. Introduction: which pages should an editor open first?</h2>
+<p>An editor with time for 50 pages a month needs an order, not a flag. A "declining" flag alone fires on more than half of pages in the starter data (54.2%), so it cannot say where to start. The question here is whether a learned ranking is worth using over a transparent rule.</p>
+
+<h2>2. Data</h2>
+<ul><li><b>Source:</b> the FlyRank ML Internship warehouse (gated release), tables <code>fact_content_daily_performance</code> (partition <code>month=2026-03</code>, 9,841,378 daily rows, Mar 1–31) and <code>dim_content</code>.</li>
+<li><b>Unit:</b> one page. After dropping pages with missing position or click-through rate, @@PAGES@@ pages remain (37 training clients, 10 test clients, @@TESTP@@ test pages).</li>
+<li><b>Excluded:</b> GA4 engagement fields (only 4.2% of March rows have GA4 data), product-computed scores, and the label's own source columns. Client names, URLs and keywords are not in the data; hashed IDs are used only for grouping and are not shown here.</li>
+<li><b>Two page counts:</b> the age audit in Figure 3 uses 331,437 pages including those the model drops, so its decline rates are lower than the 37.7% model base rate.</li></ul>
+
+<h2>3. Methodology</h2>
+<ul><li><b>Label (proxy):</b> declining = impressions Mar 16–31 lower than Mar 1–15. Any drop counts, so tiny pages are noisy.</li>
+<li><b>Features (7):</b> impressions, average position, CTR, content age, word count, search volume, competition — all measured over the whole month.</li>
+<li><b>Baseline:</b> flag pages 365+ days old with 500+ impressions, ranked by impressions.</li>
+<li><b>Models:</b> logistic regression; random forest (300 trees, depth 8, balanced classes, seed 42).</li>
+<li><b>Validation:</b> one split that keeps every client wholly in training or test; zero client overlap confirmed. Metric: precision among the top 20 and top 50, always beside the base rate.</li>
+<li><b>Leakage checks:</b> the label's source column removed from features (a deliberate leak pushed AUC above 0.999); product flags absent; a random split compared with the grouped split; the top feature dropped and the score re-measured.</li></ul>
+
+<h2>4. Results: the model beats the rule on held-out clients</h2>
+<figure role=img aria-label="Bar chart of precision at 50: base rate 0.40, baseline rule 0.10, logistic regression 0.44, random forest 0.68."><div class=t>Figure 1. The random forest's top 50 were mostly declining pages; the rule's were not</div>@@C1@@<figcaption>Precision@50 on 10 held-out clients; bar length is the share of the top 50 that declined (0–100%).</figcaption></figure>
+<table><tr><th>Method</th><th>P@20</th><th>P@50</th><th>Source notebook</th></tr>@@ROWS@@</table>
+<p class=mu>A majority-class dummy is omitted: it gives every page the same score, so its ranking is arbitrary.</p>
+<figure role=img aria-label="Bar chart of precision at 50: random row split 0.86, grouped by client 0.66."><div class=t>Figure 2. A random row split overstated skill by about 20 points</div>@@C2@@<figcaption>Same model, two splits. The grouped number is the one to trust.</figcaption></figure>
+<figure role=img aria-label="Bar chart of decline rate by content age band: new 26.2 percent, aging 15.6 percent, old 23.4 percent."><div class=t>Figure 3. Decline is highest for new and old pages, lowest in between</div>@@C3@@<figcaption>Share of pages declining by age band (0–100%). A single age threshold cannot express this U shape; permutation importance (AUC drop): @@IMP@@.</figcaption></figure>
+<p><b>Interpretation.</b> The rule scored below the base rate, so beating it is a low bar; the more informative gaps are against the base rate and logistic regression. Age was the top feature, but dropping it left precision@50 at 0.68 versus 0.66, a difference within noise.</p>
+
+<h2>5. Limitations and honest framing</h2>
+<ul><li><b>Not a forecast.</b> Features and label cover the same 31 days. The result shows the model can flag pages that declined within March, not that it predicts next month.</li>
+<li><b>Small test.</b> 50 pages from 10 clients, one split. For 0.66 on 50 pages a simple interval is roughly 0.52–0.78, and wider once client clustering is counted. The random forest scored 0.68 and 0.66 in two runs of the same setup.</li>
+<li><b>Proxy label.</b> Pages with a single impression can be labelled by chance; the model's most confident errors were of this kind.</li>
+<li><b>Scope.</b> One month, one portfolio; seasonality is not separated from decline. Associations are observational and say nothing about whether a refresh helps.</li></ul>
+
+<h2>6. Ranked recommendations</h2>
+<ol><li><b>Use the model's top-ranked pages as a review shortlist, with a human check first.</b> About 1 in 3 of the top 50 did not decline, and sub-1 positions or single-impression pages need manual checks.</li>
+<li><b>Review CTR and snippet on well-ranked, low-CTR pages, largest impressions first.</b> CTR falls from 1.17% at positions 1–3 to 0.20% at 21+. The rule flagged @@CTR@@ of @@TOT@@ pages (@@CTRPCT@@), so it needs ordering; sorting by impressions is an untested proposal.</li>
+<li><b>Do not use "old and visible" alone as a refresh trigger.</b> It scored 0.10 against a 0.40 base rate.</li>
+<li><b>Before relying on it, re-test with features from before the label window, on a later month.</b> Retrain if the base rate drifts far from 0.38 or precision@50 falls clearly below 0.55.</li></ol>
+<p class=mu>Playbook output: @@REV@@ pages for refresh review and @@CTR@@ for snippet checks out of @@TOT@@; never automate edits from this queue.</p>
+
+<h2>7. Reproducibility</h2>
+<p>Repository: <a href="https://github.com/Syed-Attique/FlyRank-Internship">Syed-Attique/FlyRank-Internship</a>. Notebooks in <code>work/notebooks/</code>: <a href="https://github.com/Syed-Attique/FlyRank-Internship/blob/main/work/notebooks/w03_data_contract.ipynb">w03 data contract</a>, <a href="https://github.com/Syed-Attique/FlyRank-Internship/blob/main/work/notebooks/w04_baseline_score.ipynb">w04 baseline</a>, <a href="https://github.com/Syed-Attique/FlyRank-Internship/blob/main/work/notebooks/w05_model.ipynb">w05 model</a>, <a href="https://github.com/Syed-Attique/FlyRank-Internship/blob/main/work/notebooks/w06_validation_audit.ipynb">w06 validation audit</a>, <a href="https://github.com/Syed-Attique/FlyRank-Internship/blob/main/work/notebooks/w07_action_playbook.ipynb">w07 playbook</a>, <a href="https://github.com/Syed-Attique/FlyRank-Internship/blob/main/work/notebooks/capstone.ipynb">capstone</a>. Every number on this page is in <a href="results.json">results.json</a> with its source notebook. Seeds are fixed (42). Rerunning the warehouse notebooks needs approved access to the gated dataset.</p>
+
+<h2>8. Acknowledgments and data credit</h2>
+<p>Built on the <a href="https://flyrank.ai">FlyRank</a> ML Internship dataset (anonymized, pseudonymized IDs). Thanks to the FlyRank internship team for the data and course materials.</p>
+</main></body></html>
